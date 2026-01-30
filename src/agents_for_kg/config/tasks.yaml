@@ -1,0 +1,94 @@
+Ontology_Alignment:
+  description: >
+    Read the 'Question' and 'Answer' fields of the provided CSV rows {csv_content}.
+    Identify which ontology entity types appear to be present in the text.
+
+    Use the master ontology document as a reference to understand entity definitions
+    and choose the most appropriate entity types based on the wording of the row.
+    Prefer entities that are clearly supported by the text, and avoid speculative mappings.
+
+    If no clear entity type is identifiable, returning an empty list is acceptable.
+
+  expected_output: >
+    A structured list where each item contains:
+    - entity_type (one of the defined ontology entity types)
+    - supporting_text (a relevant verbatim substring from Question or Answer)
+
+    If no entities are reasonably supported, return an empty list.
+
+  agent: SchemaMapper
+
+
+  
+Attribute_Extraction:
+  description: >
+    For each entity identified by the SchemaMapper, extract relevant attributes
+    based on the ontology definitions.
+
+    Use the master ontology document as a guide for which attributes are typically
+    associated with each entity type. Whenever possible, anchor extracted attributes
+    to verbatim quotes from the original CSV row.
+
+    If an attribute is weakly supported or unclear, it may be omitted rather than guessed.
+
+  expected_output: >
+    A JSON object containing:
+    - entity_id
+    - entity_type
+    - attributes:
+        - attribute_name
+        - extracted_text (preferably a verbatim quote)
+        - evidence_anchor (textual support from the CSV)
+    - confidence_score (numeric, reflecting how explicitly the text supports the attribute)
+
+    Attributes that lack clear textual support should be excluded.
+
+  agent: EvidenceExtractor
+
+
+
+Relationship_Establishment:
+  description: >
+    Review the extracted entities and attributes across the dataset
+    and identify logical relationships between them.
+
+    Use the ontology document as a reference for valid relationship types
+    and their intended meaning. Prioritize relationships that are clearly
+    implied by the text or structure of the content, and avoid speculative links.
+
+    Not all entities need to be connected if the relationships are unclear.
+
+  expected_output: >
+    A list of relationship triplets, each containing:
+    - source_entity_id
+    - relationship_type
+    - target_entity_id
+    - brief_support (entity_ids or text snippets that support the link)
+
+    Relationships with weak or unclear support may be omitted.
+
+  agent: GraphLinker
+
+
+Quality_Validation:
+  description: >
+    Review the extracted entities, attributes, and relationships for overall
+    consistency, clarity, and alignment with the source CSV content.
+
+    Use the master ontology document as a reference to assess whether the output
+    generally follows the intended schema and evidence practices.
+
+    Flag obvious issues such as paraphrasing, unsupported claims, or confusing
+    relationships, while allowing reasonable interpretations that are grounded
+    in the text.
+
+  expected_output: >
+    A validation result containing:
+    - status (Auto-Approve | Human Review | Reject)
+    - reasons (brief explanation of any concerns or validation outcomes)
+
+    Records with minor ambiguities may be marked for Human Review rather than rejection.
+
+  agent: VerificationCritic
+
+ 
