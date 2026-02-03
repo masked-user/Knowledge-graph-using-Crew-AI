@@ -1,224 +1,175 @@
-# Master Knowledge Graph Rules & Ontology
+# Master Ontology Reference (FAQ-Aligned)
 
-## Purpose
+This ontology defines how FAQ-style CSV data should be mapped into a Knowledge Graph. It is intended as a **guiding reference**, not a rigid or exhaustive schema. Agents should extract **all explicitly supported information**, without inventing or forcing attributes.
 
-This document is the **single authoritative source of truth** for all agents involved in transforming raw CSV FAQ data into a validated Knowledge Graph.
-
-It defines:
-
-* The ontology (entities, attributes, relationships)
-* Hard rules that MUST be followed
-* Agent-specific responsibilities and constraints
-
-If any agent output conflicts with this document, the output MUST be rejected by the VerificationCritic.
+Entities or attributes not listed here are **out of scope** and MUST NOT be introduced.
 
 ---
 
-## Global Design Principles (Hard Rules)
+## Global Extraction Rules
 
-1. **No Guessing Rule**
-   An entity, attribute, or relationship MUST NOT be created unless it is explicitly supported by the source text.
-
-2. **Golden Rule of Evidence**
-
-   > No fact without a verbatim quote.
-
-3. **Determinism Over Coverage**
-   It is acceptable to miss information. It is NOT acceptable to invent information.
-
-4. **Ontology-First Extraction**
-   Extraction happens only after schema alignment. Free-form extraction is forbidden.
-
-5. **Verification Supremacy**
-   The VerificationCritic has veto power over all upstream agents.
+* Extract information **only if explicitly stated** in the Question or Answer text
+* Do NOT guess, infer, or normalize beyond what is written
+* Do NOT drop valid information simply because it feels sparse
+* Multiple attributes of the same type may exist if explicitly supported
+* Verbatim evidence is mandatory for all extracted facts
 
 ---
 
-## Ontology Overview
-
-### Entity Types (14 Total)
-
-Each extracted entity MUST match one of the following types exactly.
-
-* CustomerIntent
-* InstructionStep
-* Condition
-* EvidenceAnchor
-* ErrorState
-* Requirement
-* Outcome
-* Constraint
-* Tool
-* Location
-* TimeReference
-* Policy
-* Exception
-* Clarification
-
-Entities outside this list are forbidden.
-
----
-
-## Entity Definitions & Attribute Rules
+## Entity Definitions & Attributes
 
 ### CustomerIntent
 
-**Definition:** A goal or objective the customer is trying to achieve.
+Represents the customer’s expressed goal, question, or desired outcome.
 
-**Required Attributes:**
+**Attributes:**
 
-* intent_text (verbatim)
-* evidence_anchor
+* `intent_text` — verbatim Question text or explicit goal phrase
+* `intent_context` — any explicit situational qualifier (e.g., lease-end, early termination)
 
 ---
 
 ### InstructionStep
 
-**Definition:** A concrete action the customer must perform.
+Represents an action or procedural step the customer is instructed to perform.
 
-**Required Attributes:**
+**Attributes:**
 
-* step_text (verbatim)
-* step_order (integer, if explicit)
-* evidence_anchor
+* `action_text` — verbatim action phrase
+* `action_object` — entity the action applies to (vehicle, form, account)
+* `instruction_context` — conditions or circumstances tied to the step
+* `reference_material` — guide, page, or link explicitly mentioned
 
 ---
 
 ### Condition
 
-**Definition:** A prerequisite or blocker that enables or disables steps or intents.
+Represents an explicit rule, prerequisite, or conditional statement.
 
-**Required Attributes:**
+**Attributes:**
 
-* condition_text (verbatim)
-* evidence_anchor
+* `condition_text` — full verbatim conditional statement
+* `condition_scope` — what the condition applies to, if stated
 
 ---
 
 ### EvidenceAnchor
 
-**Definition:** Exact source text proving an extracted fact.
+Represents verbatim textual evidence supporting any extracted fact.
 
-**Rules:**
+**Attributes:**
 
-* Must be a direct substring of the CSV row
-* No paraphrasing
-* No summarization
+* `quoted_text` — exact substring from Question or Answer
 
 ---
 
-## Relationship Types & Constraints
+### Requirement
 
-All relationships MUST be directional and valid according to this table:
+Represents something the customer must provide, complete, or satisfy.
 
-| Relationship | From Entity     | To Entity       | Meaning                    |
-| ------------ | --------------- | --------------- | -------------------------- |
-| FULFILLS     | InstructionStep | CustomerIntent  | Step contributes to intent |
-| NEXT         | InstructionStep | InstructionStep | Sequential ordering        |
-| REQUIRES     | CustomerIntent  | Condition       | Condition must be met      |
-| BLOCKED_BY   | InstructionStep | Condition       | Step cannot execute        |
-| ENABLES      | Condition       | InstructionStep | Condition allows step      |
+**Attributes:**
 
-Invalid or inferred relationships are forbidden.
+* `requirement_text` — verbatim description of the requirement
+* `requirement_context` — when or why it is required, if stated
 
 ---
 
-## Agent-Specific Contracts
+### Outcome
 
-### 1. SchemaMapper
+Represents an explicitly stated result or consequence.
 
-**Purpose:** Ontology alignment only.
+**Attributes:**
 
-**Responsibilities:**
-
-* Read raw CSV text
-* Identify which ontology entities are present
-* Output entity types WITHOUT attributes
-
-**Hard Constraints:**
-
-* MUST NOT extract attributes
-* MUST NOT infer entity existence
-* MUST output entity spans tied to text
+* `outcome_text` — verbatim outcome description
+* `outcome_trigger` — condition or action that causes the outcome, if stated
 
 ---
 
-### 2. EvidenceExtractor
+### Constraint
 
-**Purpose:** Attribute extraction with proof.
+Represents an explicit limitation or restriction.
 
-**Responsibilities:**
+**Attributes:**
 
-* Extract attributes only for entities identified by SchemaMapper
-* Attach EvidenceAnchor to every attribute
-
-**Hard Constraints:**
-
-* Paraphrasing is forbidden
-* Attributes without evidence MUST be dropped
+* `constraint_text` — verbatim limitation or restriction
 
 ---
 
-### 3. GraphLinker
+### Tool
 
-**Purpose:** Relationship construction.
+Represents a system, document, form, or guide referenced in the FAQ.
 
-**Responsibilities:**
+**Attributes:**
 
-* Analyze entities across rows
-* Create valid relationships only
-
-**Hard Constraints:**
-
-* MUST validate against relationship table
-* MUST respect conditions and ordering
-* MUST NOT create orphan InstructionSteps
+* `tool_name` — explicit name of the tool or resource
+* `tool_access` — how it is accessed (link, portal, dealer)
 
 ---
 
-### 4. VerificationCritic
+### Location
 
-**Purpose:** Final validation and rejection.
+Represents a physical or organizational place.
 
-**Responsibilities:**
+**Attributes:**
 
-* Verify verbatim evidence
-* Validate schema compliance
-* Detect hallucinations or inference
-
-**Rejection Checklist:**
-
-* ❌ Evidence not verbatim
-* ❌ Attribute unsupported by text
-* ❌ Invalid entity or relationship
-* ❌ Paraphrasing detected
-
-VerificationCritic decisions are final.
+* `location_name` — explicit location name
+* `location_type` — dealer, service center, authorized location, etc.
 
 ---
 
-## Failure Handling Protocol
+### Policy
 
-If any agent violates a hard rule:
+Represents an explicit company or program rule.
 
-1. Output is rejected
-2. Error is logged with reason
-3. No partial graph updates are allowed
+**Attributes:**
 
----
-
-## Priority of Authority
-
-1. This document
-2. Structured schema definitions
-3. Agent outputs
-4. Vector DB examples (assistive only)
-
-If conflicts occur, higher priority always wins.
+* `policy_text` — verbatim policy statement
+* `policy_scope` — what the policy governs, if stated
 
 ---
 
-## Closing Principle
+### Exception
 
-> This Knowledge Graph values **truth over completeness**.
-> The system succeeds by being correct, not by being exhaustive.
+Represents an explicit deviation from a rule or policy.
+
+**Attributes:**
+
+* `exception_text` — verbatim exception statement
+
+---
+
+### Clarification
+
+Represents explanatory or disambiguating information.
+
+**Attributes:**
+
+* `clarification_text` — verbatim explanatory text
+
+---
+
+## Relationship Guidance
+
+Relationships should be created **only when logically and textually supported**.
+
+Common relationship types include:
+
+* `FULFILLS` (InstructionStep → CustomerIntent)
+* `REQUIRES` (InstructionStep → Requirement)
+* `APPLIES_WHEN` (Condition → InstructionStep or Outcome)
+* `RESULTS_IN` (InstructionStep or Condition → Outcome)
+* `REFERENCES` (InstructionStep → Tool)
+* `LOCATED_AT` (InstructionStep → Location)
+* `GOVERNED_BY` (InstructionStep or Outcome → Policy)
+* `EXCEPTED_BY` (Policy → Exception)
+
+Do NOT create relationships based on ordering, assumptions, or domain knowledge.
+
+---
+
+## Final Notes for Agents
+
+* This file is a **reference framework**, not a constraint to over-engineer
+* Extract **all explicitly stated information**, even if uneven across rows
+* Sparse nodes are valid if the source text is sparse
+* When uncertain, prefer omission over interpretation
